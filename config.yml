@@ -1,0 +1,36 @@
+configs:
+  enable_vault: false
+
+  vault:
+    host: "test"
+    auth_method: "token"
+    kv_mountpoint: "testaz"
+    token: "toto"
+
+  s3:
+    endpoint_url: "testazs3"
+    access_key: "vault!/path/to/secret:hello"
+    secret_key: "env!SECRET_KEY"
+
+    # auth_method: "ddddddddddddd"
+    # hosts:
+    #   - name: name
+    #     token: hello
+    #   - name: env!HELLO
+    #     token: vault!/path/to/secret:toto
+    # tests:
+    #   name: eeee
+    #   testaz: eeeee
+
+# CONFIG_MAPS = {
+#     "vault": {
+#         "auth_method": {"required": True, "type": "string"},
+#         "host": {"required": True, "type": "string"},
+#         "token": {"required": True, "type": "string"},
+#     },
+#     "s3": {
+#         "endpoint_url": {"required": True, "type": "string"},
+#         "access_key": {"required": True, "type": "string"},
+#         "buckets": {"required": True, "type": "list", "data_type": "string"},
+#     }
+# }

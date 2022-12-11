@@ -32,11 +32,11 @@ class VaultClient:
 
         self.ssl_verify = ssl_verify
 
-        self._client = self._get_client(
-            token=token,
-            role_id=role_id,
-            secret_id=secret_id
-        )
+        # self._client = self._get_client(
+        #     token=token,
+        #     role_id=role_id,
+        #     secret_id=secret_id
+        # )
 
     @property
     def vault_url(self):
@@ -91,20 +91,24 @@ class VaultClient:
                 version=version
             ))
 
-        try:
-            response = self._client.secrets.kv.v2.read_secret_version(**parameters)
 
-            data = response["data"]["data"]
+        # FOR TEST
+        data = "my-secret"
 
-            if key:
-                data = data[key]
+        # try:
+        # response = self._client.secrets.kv.v2.read_secret_version(**parameters)
 
-        except Exception as ex:
-            logger.error(
-                f"[vault-client] Failed to read secret '{path}' (KV:"
-                f"{self.kv_mountpoint}) from {self.vault_url}"
-            )
-            exit(8)
+        # data = response["data"]["data"]
+
+        # if key:
+        #     data = data[key]
+
+        # except Exception as ex:
+        # logger.error(
+        #     f"[vault-client] Failed to read secret '{path}' (KV:"
+        #     f"{self.kv_mountpoint}) from {self.vault_url}"
+        # )
+        # exit(8)
 
         return data
 
