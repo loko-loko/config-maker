@@ -102,6 +102,7 @@ class ResourceConfigs:
             "number": int,
             "list": list,
             "map": dict,
+            "private_key": str,
         }
     
         # Get configs data from file
@@ -219,83 +220,76 @@ class ResourceConfigs:
         logger.debug(f"[configs] Private key write to file: {private_key_path}")
         return private_key_path
     
-    def _get_secrets(self, resource: str, config: dict):
+    def _get_secrets(self, resource: str, value: str, config_type: str):
     
-        formatted_config = dict(config)
+        formatted_value = value
+
+        # Get vault secret
+        if value.startswith(CONFIG_VAULT_PATH_SUFFIX):
+
+            if not self.enable_vault:
+                logger.error(
+                    f"[configs] Enable vault with 'enable_vault=true' "
+                    f"to download secret (Resource:{resource})"
+                )
+                exit(1)
     
-        for key, value in config.items():
-            if type(value) != str:
-                continue
+            if resource.startswith("vault"):
+                logger.error(
+                    f"[configs] You can't retrieve vault config secret on vault !..."
+                )
+                exit(1)
     
-            formatted_value = value
+            vault_secret = value[len(CONFIG_VAULT_PATH_SUFFIX):]
     
-            # Get vault secret
-            if value.startswith(CONFIG_VAULT_PATH_SUFFIX):
-                if not self.enable_vault:
+            if self._vault_secrets.get(vault_secret):
+                formatted_value = self._vault_secrets[vault_secret]
+    
+            else:
+                splitted_vault_secret = vault_secret.split(":")
+    
+                if len(splitted_vault_secret) != 2:
                     logger.error(
-                        f"[configs] Enable vault with 'enable_vault=true' "
-                        f"to download secret (Resource:{resource}.{key})"
+                        f"[configs] Bad format for vault secret: "
+                        f"'{CONFIG_VAULT_PATH_SUFFIX}"
+                        f"/path/to/secret:secret_key' "
+                        f"(Resource:{resource})"
                     )
                     exit(1)
     
-                if resource == "vault":
-                    logger.error(
-                        f"[configs] You can't retrieve vault config secret on vault !..."
-                    )
-                    exit(1)
+                vault_path, vault_key = splitted_vault_secret
     
-                vault_secret = value[len(CONFIG_VAULT_PATH_SUFFIX):]
+                formatted_value = self.vault_client.get_secret(
+                    path=vault_path,
+                    key=vault_key
+                )
     
-                if self._vault_secrets.get(vault_secret):
-                    formatted_value = self._vault_secrets[vault_secret]
-    
-                else:
-                    splitted_vault_secret = vault_secret.split(":")
-    
-                    if len(splitted_vault_secret) != 2:
-                        logger.error(
-                            f"[configs] Bad format for vault secret: "
-                            f"'{CONFIG_VAULT_PATH_SUFFIX}"
-                            f"/path/to/secret:secret_key' "
-                            f"(Resource:{resource}.{key})"
-                        )
-                        exit(1)
-    
-                    vault_path, vault_key = splitted_vault_secret
-    
-                    formatted_value = self.vault_client.get_secret(
-                        path=vault_path,
-                        key=vault_key
+                # Write private key
+                if config_type == "private_key":
+                    formatted_value = self._write_private_key(
+                        resource=resource,
+                        vault_secret=vault_secret,
+                        private_key=formatted_value
                     )
     
-                    # Write private key
-                    if key == "private_key":
-                        formatted_value = self._write_private_key(
-                            resource=resource,
-                            vault_secret=vault_secret,
-                            private_key=formatted_value
-                        )
+                self._vault_secrets[vault_secret] = formatted_value
+                self.vault_secrets_count += 1
     
-                    self._vault_secrets[vault_secret] = formatted_value
-                    self.vault_secrets_count += 1
+        # Get environement vars
+        if value.startswith(CONFIG_ENV_VAR_SUFFIX):
+            environment_key = value[len(CONFIG_ENV_VAR_SUFFIX):]
+            formatted_value = os.getenv(environment_key, None)
     
-            # Get environement vars
-            if value.startswith(CONFIG_ENV_VAR_SUFFIX):
-                environment_key = value[len(CONFIG_ENV_VAR_SUFFIX):]
-                formatted_value = os.getenv(environment_key, None)
+            if not formatted_value:
+                logger.error(
+                    f"[configs] Environment vars not found: "
+                    f"{environment_key} (Resource:{resource})"
+                )
+                exit(1)
     
-                if not formatted_value:
-                    logger.error(
-                        f"[configs] Environment vars not found: "
-                        f"{environment_key} (Resource:{resource}.{key})"
-                    )
-                    exit(1)
+            self.env_secrets_count += 1
     
-                self.env_secrets_count += 1
-    
-            formatted_config[key] = formatted_value
-    
-        return formatted_config
+        return formatted_value
    
     def _get_sub_configs(self, resource: str, configs_maps: dict, config: dict):
 
@@ -352,10 +346,14 @@ class ResourceConfigs:
                     config=config[config_key],
                 )
 
-        return self._get_secrets(
-            resource=resource,
-            config=config
-        )
+            if config_type == str:
+                config[config_key] = self._get_secrets(
+                    resource=resource,
+                    value=config_value,
+                    config_type=formatted_config_type
+                )
+
+        return config
 
     def _get_resource_configs(self, resource: str):
     
@@ -372,6 +370,7 @@ class ResourceConfigs:
                 "endpoint_url": {"required": True, "type": "text"},
                 "access_key": {"required": True, "type": "text"},
                 "secret_key": {"required": True, "type": "text"},
+                "testaz": {"required": True, "type": "private_key"},
             }
         }
 

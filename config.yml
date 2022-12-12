@@ -1,5 +1,5 @@
 configs:
-  enable_vault: false
+  enable_vault: true
 
   vault:
     host: "test"
@@ -11,6 +11,7 @@ configs:
     endpoint_url: "testazs3"
     access_key: "vault!/path/to/secret:hello"
     secret_key: "env!SECRET_KEY"
+    testaz: "vault!/pth/to/secret:toto"
 
     # auth_method: "ddddddddddddd"
     # hosts:
